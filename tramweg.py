@@ -7,11 +7,13 @@
 #
 # 2. 
 # [x] store the ids in the cache file
-# [ ] fuzzy check if the name of the station is in the cache file
-# [ ] (optional) make it fucking readable
+# [ ] fuzzy check if the name of the station is in the cache file (should i even do it?)
 #
 # 3.
 # [x] add more Berlin-ish look to the CLI output
+#
+# 4.
+# [ ] diversify by functions, kann man sagen
 
 
 from rich.console import Console
@@ -35,7 +37,7 @@ def load_cache() -> dict:
 
 def dump_cache(cache) -> None:
     with open(CACHE_FILE, "w") as file:
-        json_string = json.dump(cache, file)
+        json.dump(cache, file)
 
 
 def main():
@@ -45,26 +47,22 @@ def main():
         cache = {}
 
     print("-" * 50)
-    user_station = input("What station?\n")
+    user_station = input("What station?\n").lower().strip()
 
     if user_station in cache:
         station_name = cache[user_station]["name"]
         station_id = cache[user_station]["id"]
-        departures_data = requests.get(f"{BASE_LINK}/stops/{station_id}/departures?duration=10").json()
         print("in the cache")
     else:
-        data = requests.get(f"{BASE_LINK}/locations?query={user_station} berlin&results=1").json()
+        data = requests.get(f"{BASE_LINK}/locations?query={user_station} berlin&results=1",timeout=5).json()
         station_name = data[0]["name"]
         station_id = data[0]["id"]
 
         cache[user_station] = {"id": station_id, "name": station_name}
         dump_cache(cache)
-        departures_data = requests.get(f"{BASE_LINK}/stops/{station_id}/departures?duration=10").json()
         print("API id")
 
-    if not departures_data['departures']:
-        raise Exception("No departures found.")
-
+    departures_data = requests.get(f"{BASE_LINK}/stops/{station_id}/departures?duration=10", timeout=5).json()
 
     if not departures_data['departures']:
         raise Exception("No departures found.")
