@@ -9,9 +9,14 @@
 # [x] store the ids in the cache file
 # [ ] fuzzy check if the name of the station is in the cache file
 # [ ] (optional) make it fucking readable
+#
+# 3.
+# [x] add more Berlin-ish look to the CLI output
 
 
-from rich import print
+from rich.console import Console
+from rich.table import Table
+from rich import box 
 import requests
 import json
 from datetime import datetime
@@ -60,37 +65,45 @@ def main():
     if not departures_data['departures']:
         raise Exception("No departures found.")
 
-    print(f"\n[bold]Departures from {station_name}: [/bold]")
+
+    if not departures_data['departures']:
+        raise Exception("No departures found.")
+
+    console = Console()
+    table = Table(title=f"Abfahrten {station_name}", style="orange_red1", header_style="bold orange_red1", box=box.SIMPLE, show_lines=False)
+
+    table.add_column("Linie", style="bold white", justify="left", width=5)
+    table.add_column("Ziel", style="orange_red1")
+    table.add_column("Abfahrt", style="bold orange_red1", justify="right")
 
     try:
         for trip in departures_data['departures']:
             line_name = trip['line']['name'] 
-            
             direction = trip['direction']
-            
             when = trip['when'] # ISO format
 
             if when is None:
-                print("skipped some " + line_name)
                 continue
 
-            # making it readable
+            # ISO -> readable
             departure_time = datetime.fromisoformat(when)
             now = datetime.now().astimezone()
             delta = departure_time - now
-
             minutes_left = int(delta.total_seconds() / 60)
 
-            # output
             if minutes_left < 0:
-                print(f"[{line_name}] -> {direction} | left {minutes_left} minutes ago.")
+                time_str = "weg"
             elif minutes_left == 0:
-                print(f"[{line_name}] -> {direction} | departing right now.")
+                time_str = "sofort"
             else:
-                print(f"[{line_name}] -> {direction} | in {minutes_left} minutes.")
+                time_str = f"{minutes_left} min"
+
+            table.add_row(line_name, direction, time_str)
+
+        console.print(table)
 
     except Exception as e:
-        print(f"something went wrong: {e}")
+        print(f"[red]something went wrong: {e}[/red]")
 
 
 if __name__ == "__main__":
