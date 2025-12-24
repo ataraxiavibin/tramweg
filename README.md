@@ -29,9 +29,9 @@ It's a learning project for me, so nothing crazy.
 
 Simply run the script: 
 
-    ```bash
-    python tramweg.py
-    ```
+  ```bash
+  python tramweg.py
+  ```
 
 ## License
 
