@@ -1,20 +1,5 @@
 # tramweg.py
-#
-# 1.
-# [x] get a station
-# [x] make a request to the api
-# [x] list the info
-#
-# 2. 
-# [x] store the ids in the cache file
-# [ ] fuzzy check if the name of the station is in the cache file (should i even do it?)
-#
-# 3.
-# [x] add more Berlin-ish look to the CLI output
-#
-# 4.
-# [ ] diversify by functions, kann man sagen
-
+# SPDX-License-Identifier: GPL-3.0-only
 
 from rich.console import Console
 from rich.table import Table
@@ -23,10 +8,8 @@ import requests
 import json
 from datetime import datetime
 
-
 BASE_LINK = "https://v6.vbb.transport.rest"
 CACHE_FILE = "station_cache.json"
-
 
 def load_cache() -> dict:
     with open(CACHE_FILE, "r") as file:
@@ -35,12 +18,38 @@ def load_cache() -> dict:
     return cache
 
 
-def dump_cache(cache) -> None:
+def dump_cache(cache: dict) -> None:
     with open(CACHE_FILE, "w") as file:
         json.dump(cache, file)
 
 
-def main():
+def get_station_id(user_input: str, cache: dict) -> tuple[str, str, dict]:
+    if user_input in cache:
+        station_name = cache[user_input]["name"]
+        station_id = cache[user_input]["id"]
+    else:
+        data = requests.get(f"{BASE_LINK}/locations?query={user_input} berlin&results=1",timeout=5).json()
+        station_name = data[0]["name"]
+        station_id = data[0]["id"]
+
+        cache[user_input] = {"id": station_id, "name": station_name}
+
+    return (station_name, station_id, cache)
+
+
+def get_departures(station_id: str) -> dict:
+    return requests.get(f"{BASE_LINK}/stops/{station_id}/departures?duration=10", timeout=5).json() # only 10 last departures
+
+
+def calculate_time_left(iso_date: str) -> int:
+    departure_time = datetime.fromisoformat(iso_date)
+    now = datetime.now().astimezone()
+    delta = departure_time - now
+
+    return int(delta.total_seconds() / 60)
+
+
+def main() -> None:
     try:
         cache = load_cache()
     except (FileNotFoundError, json.decoder.JSONDecodeError):
@@ -49,20 +58,10 @@ def main():
     print("-" * 50)
     user_station = input("What station?\n").lower().strip()
 
-    if user_station in cache:
-        station_name = cache[user_station]["name"]
-        station_id = cache[user_station]["id"]
-        print("in the cache")
-    else:
-        data = requests.get(f"{BASE_LINK}/locations?query={user_station} berlin&results=1",timeout=5).json()
-        station_name = data[0]["name"]
-        station_id = data[0]["id"]
+    station_name, station_id, cache = get_station_id(user_station, cache)
+    dump_cache(cache)
 
-        cache[user_station] = {"id": station_id, "name": station_name}
-        dump_cache(cache)
-        print("API id")
-
-    departures_data = requests.get(f"{BASE_LINK}/stops/{station_id}/departures?duration=10", timeout=5).json()
+    departures_data = get_departures(station_id)
 
     if not departures_data['departures']:
         raise Exception("No departures found.")
@@ -78,16 +77,10 @@ def main():
         for trip in departures_data['departures']:
             line_name = trip['line']['name'] 
             direction = trip['direction']
-            when = trip['when'] # ISO format
 
-            if when is None:
-                continue
+            if (when := trip['when']) is None: continue
 
-            # ISO -> readable
-            departure_time = datetime.fromisoformat(when)
-            now = datetime.now().astimezone()
-            delta = departure_time - now
-            minutes_left = int(delta.total_seconds() / 60)
+            minutes_left = calculate_time_left(when)
 
             if minutes_left < 0:
                 time_str = "weg"
