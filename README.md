@@ -2,16 +2,17 @@ This is a simple CLI tool to track Berlin's public transport in real time. Power
 
 It's a learning project for me, so nothing crazy.
 
-## Features:
+## Features
 - Automatically finds the station ID based on the name of the station
 - Fetches live data for any station in Berlin
 - Simple caching implemented with local json file
 - Colorful Berlin-themed UI using the `rich` library
 
-## To-Do:
+## To-Do
 
 - Add command-line arguments
 - Refactor code, make it modular
+- Add a local config file
 
 ## Installation
 
